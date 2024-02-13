@@ -1,15 +1,24 @@
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class Saldo extends JFrame {
-    private JTextField textField1;
     private JButton menubtn;
     private JPanel panelsl;
-    public static float saldobanco = 200;
+    private JLabel Saldotxt;
+    private String nombreUsuario;
 
-    public Saldo() {
+
+
+    public Saldo(String nombreUsuario) {
         super("Saldo");
+        this.nombreUsuario = nombreUsuario;
         setContentPane(panelsl);
         setSize(500, 500);
         setResizable(false);
@@ -21,17 +30,35 @@ public class Saldo extends JFrame {
         menubtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                Menu menu = new Menu();
+                Menu menu = new Menu(nombreUsuario);
                 menu.setVisible(true);
                 JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panelsl);
                 frame.dispose();
             }
         });
-        textField1();
+
+        mostrarSaldoDesdeBaseDeDatos();
     }
 
-    private void textField1() {
-        String saldo = String.valueOf(saldobanco);
-        textField1.setText(saldo);
+    private void mostrarSaldoDesdeBaseDeDatos() {
+        try {
+            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/Banco", "root", "Hidokun2003.y");
+
+            String query = "SELECT saldo_actual FROM Usuarios WHERE nombre_de_usuario = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, this.nombreUsuario);
+
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                float saldo = rs.getFloat("saldo_actual");
+                Saldotxt.setText(String.valueOf(saldo));
+            }
+            rs.close();
+            stmt.close();
+            conn.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error al obtener el saldo desde la base de datos: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

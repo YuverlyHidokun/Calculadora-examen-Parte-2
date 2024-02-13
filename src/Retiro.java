@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.*;
 
 public class Retiro extends JFrame {
     private JTextField pantallar;
@@ -18,10 +19,17 @@ public class Retiro extends JFrame {
     private JButton enter;
     private JButton menu;
     private JPanel Retiro;
+    private String nombreUsuario;
+    private Connection establecerConexion() throws SQLException {
+        String url = "jdbc:mysql://localhost:3306/Banco";
+        String usuarioDB = "root";
+        String contraseñaDB = "Hidokun2003.y";
+        return DriverManager.getConnection(url, usuarioDB, contraseñaDB);
+    }
 
-    public Retiro(){
+    public Retiro(String nombreUsuario){
         super("Retiro");
-
+        this.nombreUsuario = nombreUsuario;
         setContentPane(Retiro);
         setSize(550,500);
         setResizable(false);
@@ -34,7 +42,7 @@ public class Retiro extends JFrame {
         menu.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                Menu menu = new Menu();
+                Menu menu = new Menu(nombreUsuario);
                 menu.setVisible(true);
                 JFrame frameRegreso = (JFrame) SwingUtilities.getWindowAncestor(Retiro);
                 frameRegreso.dispose();
@@ -49,18 +57,7 @@ public class Retiro extends JFrame {
         enter.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                float saldoactual= Saldo.saldobanco;
-                String retiro = pantallar.getText();
-                float retiro1 =Integer.parseInt(retiro);
-                if(retiro1> saldoactual){
-                    JOptionPane.showMessageDialog(null,"Saldo Insuficiente","Error", JOptionPane.WARNING_MESSAGE);
-                    pantallar.setText("");
-                }else{
-                    Saldo.saldobanco = saldoactual - retiro1;
-                    pantallar.setText("");
-                    JOptionPane.showMessageDialog(null, "Se retiró: " + retiro1 + "\nSaldo actual: " + Saldo.saldobanco);
-                }
-
+                realizarRetiro();
             }
         });
         a1Button.addActionListener(new ActionListener() {
@@ -134,5 +131,40 @@ public class Retiro extends JFrame {
             }
         });
 
+    }
+    private void realizarRetiro() {
+        try {
+            Connection conn = establecerConexion();
+
+            String query = "SELECT saldo_actual FROM Usuarios WHERE nombre_de_usuario = ?";
+            PreparedStatement stmt = conn.prepareStatement(query);
+            stmt.setString(1, nombreUsuario);
+
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                float saldoActual = rs.getFloat("saldo_actual");
+                String retiroStr = pantallar.getText();
+                float retiro = Float.parseFloat(retiroStr);
+                if (retiro > 0 && retiro <= saldoActual) {
+                    float nuevoSaldo = saldoActual - retiro;
+
+                    String updateQuery = "UPDATE Usuarios SET saldo_actual = ? WHERE nombre_de_usuario = ?";
+                    PreparedStatement updateStmt = conn.prepareStatement(updateQuery);
+                    updateStmt.setFloat(1, nuevoSaldo);
+                    updateStmt.setString(2, nombreUsuario);
+                    updateStmt.executeUpdate();
+
+                    JOptionPane.showMessageDialog(null, "Se retiró: " + retiro + "\nSaldo actual: " + nuevoSaldo);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Monto de retiro inválido.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+            rs.close();
+            stmt.close();
+            conn.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error al realizar el retiro: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

@@ -1,14 +1,23 @@
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.*;
+import java.sql.*;
 
 public class Bienvenida extends JFrame {
     private JTextField text1;
-    private JTextField text2;
+    private JPasswordField text2;
     private JButton ingresarbtn;
     private JButton salirbtn;
     private JPanel panelbn;
+    private JButton verificarConexionButton;
+
+
+    private Connection establecerConexion() throws SQLException {
+        String url = "jdbc:mysql://localhost:3306/Banco";
+        String usuarioDB = "root";
+        String contraseñaDB = "Hidokun2003.y";
+        return DriverManager.getConnection(url, usuarioDB, contraseñaDB);
+    }
 
     public Bienvenida() {
         super("Banco el Buho");
@@ -22,23 +31,7 @@ public class Bienvenida extends JFrame {
         ingresarbtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String usuario = "Lady";
-                String contrasenia = "123456";
-                try {
-                    if (usuario.equals(text1.getText()) && contrasenia.equals(text2.getText())) {
-                        Menu menu = new Menu();
-                        menu.setVisible(true);
-                        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(panelbn);
-                        frame.dispose();
-                    } else {
-                        JOptionPane.showMessageDialog(null, "Error en las credenciales");
-                        text1.setText("");
-                        text2.setText("");
-                    }
-
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
+                login();
             }
         });
 
@@ -55,5 +48,45 @@ public class Bienvenida extends JFrame {
                 }
             }
         });
+        verificarConexionButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                conexion_base();
+            }
+        });
+    }
+    public void conexion_base() {
+        try {
+            Connection conexion = establecerConexion();
+            JOptionPane.showMessageDialog(null, "Conexión establecida con la base de datos.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            conexion.close();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Error al conectar con la base de datos: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    public void login() {
+        try (Connection conexion = establecerConexion()) {
+            String nombreUsu = text1.getText().trim();
+            String contraseña = new String(text2.getPassword()).trim();
+
+            String sql = "SELECT * FROM usuarios WHERE nombre_de_usuario=? AND contraseña_encriptada=?";
+            PreparedStatement pstmt = conexion.prepareStatement(sql);
+            pstmt.setString(1, nombreUsu);
+            pstmt.setString(2, contraseña);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                String nombreUsuario = rs.getString("nombre_de_usuario");
+                Menu menu = new Menu(nombreUsuario);
+                menu.setVisible(true);
+                dispose();
+                JFrame frame=(JFrame) SwingUtilities.getWindowAncestor(panelbn);
+                frame.dispose();
+            } else {
+                JOptionPane.showMessageDialog(null, "Credenciales incorrectas", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Error al realizar la consulta: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
